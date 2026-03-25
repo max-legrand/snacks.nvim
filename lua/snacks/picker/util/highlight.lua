@@ -46,7 +46,7 @@ function M.get_highlights(opts)
   end
 
   if parser and buf then
-    parser:parse(true)
+    parser:parse(false)
     parser:for_each_tree(function(tstree, tree)
       if not tstree then
         return
@@ -60,7 +60,7 @@ function M.get_highlights(opts)
       for capture, node, metadata in query:iter_captures(tstree:root(), buf) do
         ---@type string
         local name = query.captures[capture]
-        if name ~= "spell" then
+        if name ~= "spell" and node then
           local range = { node:range() } ---@type number[]
           local multi = range[1] ~= range[3]
           local text = multi

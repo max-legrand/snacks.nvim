@@ -304,7 +304,15 @@ function M:highlight(opts)
   if lang == "markdown" then
     return self:markdown()
   end
-  if not (lang and pcall(vim.treesitter.start, self.win.buf, lang)) and ft then
+  if lang and pcall(vim.treesitter.start, self.win.buf, lang) then
+    -- Force a synchronous parse so the highlighter decoration provider never
+    -- fires with nil nodes (nightly regression: async parse(true) can return
+    -- nil nodes before parsing completes).
+    local ok, parser = pcall(vim.treesitter.get_parser, self.win.buf, lang)
+    if ok and parser then
+      parser:parse(false)
+    end
+  elseif ft then
     vim.bo[self.win.buf].syntax = ft
   end
 end
@@ -398,6 +406,13 @@ function M:set_lines(lines, offset)
   vim.bo[self.win.buf].modifiable = true
   vim.api.nvim_buf_set_lines(self.win.buf, offset or 0, -1, false, lines)
   vim.bo[self.win.buf].modifiable = false
+  -- Force a synchronous parse after updating buffer content so the treesitter
+  -- highlighter never fires on the next redraw with an incomplete (nil-node)
+  -- parse tree (nightly regression where internal parse(true) is async).
+  local ok, parser = pcall(vim.treesitter.get_parser, self.win.buf)
+  if ok and parser then
+    parser:parse(false)
+  end
 end
 
 ---@param msg string
